@@ -19,7 +19,7 @@ built with [nui.nvim](https://github.com/MunifTanjim/nui.nvim).
 ```lua
 -- lua/plugins/extensions.lua
 return {
-  "yourname/extensions.nvim",
+  "DevDanielAlvarez/Extensions.Nvim",
   dependencies = { "MunifTanjim/nui.nvim" },
   cmd = "Extensions",
   opts = {},
@@ -28,17 +28,18 @@ return {
 
 ## Usage
 
-Run `:Extensions` to open the panel.
+Run `:Extensions` to open the panel: a centered floating window with a plugin
+list on the left and a live details preview on the right, which updates as
+you move the cursor.
 
-| Key     | Action                                        |
-| ------- | ---------------------------------------------- |
-| `<CR>`  | Open details for the plugin under the cursor    |
-| `i`     | Install the plugin under the cursor             |
-| `x`     | Remove the plugin under the cursor              |
-| `/`     | Search/filter by name, description or tag       |
-| `<Tab>` | Cycle status filter: All / Installed / Not installed |
-| `r`     | Reload the catalog                              |
-| `q`     | Close                                           |
+| Key         | Action                                                |
+| ----------- | ------------------------------------------------------ |
+| `i`         | Install the plugin under the cursor                     |
+| `x`         | Remove the plugin under the cursor                      |
+| `/`         | Search/filter by name, description or tag               |
+| `<Tab>`     | Cycle status filter: All / Installed / Not installed     |
+| `r`         | Reload the catalog                                       |
+| `q`/`<Esc>` | Close                                                    |
 
 ## How installs work
 

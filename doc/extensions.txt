@@ -30,7 +30,7 @@ SETUP                                                      *extensions-setup*
 
 Add it as a lazy.nvim plugin spec, e.g. in `lua/plugins/extensions.lua`: >lua
     return {
-      "yourname/extensions.nvim",
+      "DevDanielAlvarez/Extensions.Nvim",
       dependencies = { "MunifTanjim/nui.nvim" },
       cmd = "Extensions",
       opts = {},
@@ -52,21 +52,15 @@ COMMANDS                                                *extensions-commands*
 ==============================================================================
 MAPPINGS                                                *extensions-mappings*
 
-Inside the extensions list:
+`:Extensions` opens a centered floating window: a plugin list on the left
+and a live details preview on the right that updates as the cursor moves.
 
-    <CR>    Open details for the plugin under the cursor.
-    i       Install the plugin under the cursor.
-    x       Remove the plugin under the cursor.
-    /       Search/filter by name, description or tag.
-    <Tab>   Cycle status filter: All / Installed / Not installed.
-    r       Reload the catalog and re-render the list.
-    q       Close the extensions panel.
-
-Inside a plugin's detail popup:
-
-    i       Install this plugin.
-    x       Remove this plugin.
-    q / <Esc>   Close the detail popup.
+    i           Install the plugin under the cursor.
+    x           Remove the plugin under the cursor.
+    /           Search/filter by name, description or tag.
+    <Tab>       Cycle status filter: All / Installed / Not installed.
+    r           Reload the catalog and re-render the list.
+    q / <Esc>   Close the extensions panel.
 
 ==============================================================================
 CONFIGURATION                                      *extensions-configuration*

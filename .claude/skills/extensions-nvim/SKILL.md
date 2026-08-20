@@ -58,15 +58,23 @@ but for browsing, installing, and removing **Neovim plugins** themselves
 
 ## MVP scope (in)
 
-- `:Extensions` command opens the UI (nui.nvim split/popup).
+- `:Extensions` command opens the UI: a centered floating `nui.nvim` Layout
+  (not a left split — revised from the original plan) with two side-by-side
+  Popups: a plugin list (~34% width) and a live details preview (~66%
+  width) that updates on `CursorMoved` in the list. Rounded borders, title
+  in the list's top border, keymap hints in its bottom border, live
+  filter/count status also in its bottom border (via `border:set_text`).
 - List view with per-item status indicator (installed vs not).
 - Text search/filter over name/description/tags.
 - Status filter: All / Installed / Not installed.
-- Detail panel on selection: name, repo, description, status.
+- Live preview pane on cursor movement: name, repo, description, status,
+  category, tags. (Replaces the earlier plan of a separate on-demand detail
+  popup triggered by `<CR>` — the preview pane is now always visible.)
 - Actions: install (`i`), remove (`x`), both wired to the managed spec file
   + `lazy.nvim` API as described above.
-- Keymaps: `j`/`k` move, `<CR>` open detail, `i` install, `x` remove,
-  `/` search, `q` close, `r` reload catalog.
+- Keymaps (all on the list pane; `j`/`k` are native cursor motion, no remap
+  needed): `i` install, `x` remove, `/` search, `<Tab>` cycle status filter,
+  `r` reload catalog, `q`/`<Esc>` close.
 - `require("extensions").setup({ catalog_path = ... })` — minimal config,
   only override currently planned is a custom catalog path.
 
