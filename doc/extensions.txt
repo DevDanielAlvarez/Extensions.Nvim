@@ -8,6 +8,7 @@ CONTENTS                                                *extensions.nvim*
     Setup ................................... |extensions-setup|
     Commands ............................. |extensions-commands|
     Mappings .............................. |extensions-mappings|
+    Configuring a plugin ......... |extensions-plugin-config|
     Configuration ..................... |extensions-configuration|
 
 ==============================================================================
@@ -59,10 +60,37 @@ as the cursor moves, and a keymap reference panel docked along the bottom
 
     i           Install the plugin under the cursor.
     x           Remove the plugin under the cursor.
+    c           Configure the plugin under the cursor (if it has options).
     /           Focus the search bar and filter live as you type.
     <Tab>       Cycle status filter: All / Installed / Not installed.
     r           Reload the catalog and re-render the list.
     q / <Esc>   Close the extensions panel.
+
+Inside the config popup opened by `c`:
+
+    <CR> / <Space>   Toggle a `toggle` field, or edit an `int`/`string` field.
+    q / <Esc>        Close the config popup.
+
+==============================================================================
+CONFIGURING A PLUGIN                                *extensions-plugin-config*
+
+Catalog entries may declare a `config` field: an array of option specs a
+plugin supports. Pressing `c` on an **installed** plugin that has one opens
+a popup with one line per option: >lua
+    {
+      key = "check_ts",           -- option name written into that plugin's opts
+      input_type = "toggle",      -- "toggle" | "int" | "string"
+      input_name = "Treesitter-aware pairs", -- label shown in the popup
+      default = true,
+    }
+<
+Changes save immediately into that plugin's entry in
+`lua/plugins/extensions-nvim.lua`, as an `opts = { ... }` table -- a
+first-class `lazy.nvim` spec field it already knows how to pass to
+`require(x).setup(opts)`. Configuring a plugin that isn't installed yet is
+refused (install it first); most plugins only apply `opts` once at load
+time, so changes may need `:Lazy reload <plugin>` or a restart to take
+effect -- extensions.nvim notifies you of this after saving.
 
 ==============================================================================
 CONFIGURATION                                      *extensions-configuration*
@@ -70,15 +98,19 @@ CONFIGURATION                                      *extensions-configuration*
                                                     *extensions-catalog_path*
 catalog_path ~
     Type: `string?`, Default: `nil`
-    Path to a Lua file that `return`s a custom list of catalog items,
-    overriding the small bundled catalog. Each item must have the shape: >lua
+    Path to a JSON file (same shape as the bundled `data/catalog.json`)
+    with a custom list of catalog items, overriding the small bundled
+    catalog. Each item must have the shape: >json
         {
-          repo = "user/repo",
-          name = "display name",
-          description = "...",
-          category = "...",
-          tags = { "tag1", "tag2" },
+          "repo": "user/repo",
+          "name": "display name",
+          "description": "...",
+          "category": "...",
+          "tags": ["tag1", "tag2"],
+          "config": []
         }
 <
+    `config` is optional; see |extensions-plugin-config| for its shape.
+
 ==============================================================================
 vim:tw=78:ts=8:ft=help:norl:

@@ -1,7 +1,7 @@
 local M = {}
 
 ---@class ExtensionsOptions
----@field catalog_path? string path to a Lua file `return`-ing a custom catalog list
+---@field catalog_path? string path to a JSON file (same shape as data/catalog.json) with a custom catalog list
 
 ---@type ExtensionsOptions
 M.defaults = {

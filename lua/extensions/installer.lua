@@ -40,7 +40,19 @@ function M.read_specs()
   return specs
 end
 
----@param specs { [1]: string }[]
+---@param value boolean|integer|number|string
+---@return string
+local function serialize_value(value)
+  local t = type(value)
+  if t == "string" then
+    return string.format("%q", value)
+  elseif t == "number" or t == "boolean" then
+    return tostring(value)
+  end
+  error("[extensions.nvim] cannot serialize opt value of type " .. t)
+end
+
+---@param specs { [1]: string, opts?: table<string, boolean|integer|string> }[]
 ---@return boolean
 function M.write_specs(specs)
   local path = M.managed_file()
@@ -51,7 +63,16 @@ function M.write_specs(specs)
     "return {",
   }
   for _, spec in ipairs(specs) do
-    table.insert(lines, string.format("  { %q },", spec[1]))
+    if spec.opts and next(spec.opts) ~= nil then
+      local parts = {}
+      for key, value in pairs(spec.opts) do
+        table.insert(parts, string.format("%s = %s", key, serialize_value(value)))
+      end
+      table.sort(parts) -- deterministic output regardless of pairs() order
+      table.insert(lines, string.format("  { %q, opts = { %s } },", spec[1], table.concat(parts, ", ")))
+    else
+      table.insert(lines, string.format("  { %q },", spec[1]))
+    end
   end
   table.insert(lines, "}")
   table.insert(lines, "")
@@ -128,6 +149,59 @@ function M.remove(repo)
 
   reload_specs()
   require("lazy").clean({ show = true })
+end
+
+--- Current configured `opts` for an installed plugin (empty table if none
+--- set yet).
+---@param repo string `user/repo`
+---@return table<string, boolean|integer|string>
+function M.get_opts(repo)
+  local specs = M.read_specs()
+  for _, spec in ipairs(specs) do
+    if spec[1] == repo then
+      return spec.opts or {}
+    end
+  end
+  return {}
+end
+
+--- Sets a single option on an already-tracked plugin's spec entry and
+--- rewrites the managed file. Requires the plugin to already be tracked
+--- (i.e. installed through this plugin) -- configuring before installing
+--- is refused rather than silently pre-staging an install.
+---@param repo string `user/repo`
+---@param key string
+---@param value boolean|integer|string
+function M.set_opt(repo, key, value)
+  local specs = M.read_specs()
+  local target = nil
+  for _, spec in ipairs(specs) do
+    if spec[1] == repo then
+      target = spec
+      break
+    end
+  end
+
+  if not target then
+    vim.notify("[extensions.nvim] " .. repo .. " is not installed yet -- install it before configuring.", vim.log.levels.WARN)
+    return
+  end
+
+  target.opts = target.opts or {}
+  target.opts[key] = value
+
+  if not M.write_specs(specs) then
+    return
+  end
+
+  reload_specs()
+  vim.notify(
+    "[extensions.nvim] saved. Most plugins only apply opts once at load time -- "
+      .. "run `:Lazy reload "
+      .. M.short_name(repo)
+      .. "` or restart Neovim for it to take effect.",
+    vim.log.levels.INFO
+  )
 end
 
 return M

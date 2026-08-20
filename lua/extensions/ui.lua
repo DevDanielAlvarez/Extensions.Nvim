@@ -23,6 +23,7 @@ local STATUS_CYCLE = { "all", "installed", "not_installed" }
 local KEYMAPS = {
   { key = "i", desc = "Install the plugin under the cursor" },
   { key = "x", desc = "Remove the plugin under the cursor" },
+  { key = "c", desc = "Configure the plugin under the cursor (if it has options)" },
   { key = "/", desc = "Search / filter by name, description or tag (live)" },
   { key = "<Tab>", desc = "Cycle status filter: All / Installed / Not installed" },
   { key = "r", desc = "Reload the catalog" },
@@ -34,6 +35,7 @@ local state = {
   layout = nil,
   list = nil, ---@type NuiPopup?
   preview = nil, ---@type NuiPopup?
+  config = nil, ---@type { popup: NuiPopup, item: ExtensionsCatalogItem, fields: ExtensionsConfigField[] }?
   filter = { query = "", status = "all" },
   line_to_item = {},
 }
@@ -238,6 +240,172 @@ function M.reload()
   M.render()
 end
 
+---@param item ExtensionsCatalogItem
+---@param field ExtensionsConfigField
+---@return boolean|integer|string
+local function config_field_value(item, field)
+  local opts = Installer.get_opts(item.repo)
+  local value = opts[field.key]
+  if value == nil then
+    value = field.default
+  end
+  return value
+end
+
+---@param popup NuiPopup
+---@param item ExtensionsCatalogItem
+---@param fields ExtensionsConfigField[]
+local function render_config(popup, item, fields)
+  vim.bo[popup.bufnr].modifiable = true
+  local blanks = {}
+  for i = 1, #fields do
+    blanks[i] = ""
+  end
+  vim.api.nvim_buf_set_lines(popup.bufnr, 0, -1, false, blanks)
+
+  for i, field in ipairs(fields) do
+    local value = config_field_value(item, field)
+    local line = Line()
+    if field.input_type == "toggle" then
+      line:append("  " .. (value and "[x] " or "[ ] "), "Special")
+      line:append(field.input_name, "Comment")
+    else
+      line:append("  " .. field.input_name .. ": ", "Comment")
+      line:append(tostring(value), "Title")
+    end
+    line:render(popup.bufnr, ns, i)
+  end
+  vim.bo[popup.bufnr].modifiable = false
+end
+
+function M.close_config()
+  if state.config then
+    state.config.popup:unmount()
+    state.config = nil
+  end
+end
+
+--- Opens an inline nui.Input over a single config field's row (same
+--- in-place-edit trick used by the search bar) for int/string fields.
+---@param field ExtensionsConfigField
+---@param row integer 1-indexed row of this field inside the config popup
+local function edit_config_field(field, row)
+  local cfg = state.config
+  local popup = cfg.popup
+  local width = vim.api.nvim_win_get_width(popup.winid)
+  local current = config_field_value(cfg.item, field)
+
+  local input = Input({
+    relative = { type = "win", winid = popup.winid },
+    position = { row = row - 1, col = 0 },
+    size = { width = width },
+    zindex = 250,
+    border = {
+      style = "rounded",
+      text = { top = " " .. field.input_name .. " ", top_align = "center" },
+    },
+    win_options = { winhighlight = "Normal:NormalFloat,FloatBorder:FloatBorder" },
+  }, {
+    prompt = "  ",
+    default_value = tostring(current),
+    on_submit = function(value)
+      if field.input_type == "int" then
+        local n = tonumber(value)
+        if not n or math.floor(n) ~= n then
+          vim.notify("[extensions.nvim] " .. field.input_name .. " must be an integer.", vim.log.levels.ERROR)
+          return
+        end
+        Installer.set_opt(cfg.item.repo, field.key, n)
+      else
+        Installer.set_opt(cfg.item.repo, field.key, value)
+      end
+      render_config(popup, cfg.item, cfg.fields)
+    end,
+  })
+  input:mount()
+  input:map("n", "<Esc>", function()
+    input:unmount()
+  end, { noremap = true })
+  input:map("i", "<Esc>", function()
+    input:unmount()
+  end, { noremap = true })
+end
+
+--- Activates whichever field the cursor is on inside the config popup:
+--- flips a toggle immediately, or opens an inline edit for int/string.
+function M.activate_config_field()
+  local cfg = state.config
+  if not cfg then
+    return
+  end
+  local row = vim.api.nvim_win_get_cursor(cfg.popup.winid)[1]
+  local field = cfg.fields[row]
+  if not field then
+    return
+  end
+
+  if field.input_type == "toggle" then
+    local value = config_field_value(cfg.item, field)
+    Installer.set_opt(cfg.item.repo, field.key, not value)
+    render_config(cfg.popup, cfg.item, cfg.fields)
+  else
+    edit_config_field(field, row)
+  end
+end
+
+--- Opens the config builder popup for the plugin under the cursor: reads
+--- its `config` schema and renders one editable row per field.
+function M.open_config()
+  local item = current_item()
+  if not item then
+    return
+  end
+  if not item.config or #item.config == 0 then
+    vim.notify("[extensions.nvim] " .. item.name .. " has no configurable options.", vim.log.levels.INFO)
+    return
+  end
+  if not Status.is_installed(item.repo) then
+    vim.notify("[extensions.nvim] install " .. item.name .. " before configuring it.", vim.log.levels.WARN)
+    return
+  end
+
+  M.close_config()
+
+  local fields = item.config
+  local name_width = 0
+  for _, field in ipairs(fields) do
+    name_width = math.max(name_width, #field.input_name)
+  end
+  local width = math.max(30, name_width + 20)
+
+  local popup = Popup({
+    relative = "editor",
+    position = "50%",
+    size = { width = width, height = #fields },
+    enter = true,
+    focusable = true,
+    zindex = 200,
+    border = {
+      style = "rounded",
+      text = { top = " Configure " .. item.name .. " ", top_align = "center" },
+    },
+    buf_options = { modifiable = false, filetype = "extensions", buftype = "nofile", swapfile = false },
+    win_options = {
+      cursorline = true,
+      winhighlight = "Normal:NormalFloat,FloatBorder:FloatBorder,CursorLine:PmenuSel",
+    },
+  })
+  popup:mount()
+
+  state.config = { popup = popup, item = item, fields = fields }
+  render_config(popup, item, fields)
+
+  popup:map("n", "<CR>", M.activate_config_field, { noremap = true })
+  popup:map("n", "<Space>", M.activate_config_field, { noremap = true })
+  popup:map("n", "q", M.close_config, { noremap = true })
+  popup:map("n", "<Esc>", M.close_config, { noremap = true })
+end
+
 --- Fills the docked help popup with the static key -> action reference.
 --- Rendered once at creation; its content never changes at runtime.
 local function render_help(help)
@@ -262,6 +430,7 @@ local function render_help(help)
 end
 
 function M.close()
+  M.close_config()
   if state.layout then
     state.layout:unmount()
   end
@@ -332,6 +501,7 @@ local function create_layout()
 
   list:map("n", "i", M.install_selected, { noremap = true })
   list:map("n", "x", M.remove_selected, { noremap = true })
+  list:map("n", "c", M.open_config, { noremap = true })
   list:map("n", "/", M.prompt_search, { noremap = true })
   list:map("n", "<Tab>", M.cycle_status_filter, { noremap = true })
   list:map("n", "r", M.reload, { noremap = true })

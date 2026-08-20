@@ -1,6 +1,6 @@
 ---
 name: extensions-nvim
-description: Standing architecture and MVP plan for extensions.nvim, a Neovim plugin that recreates VSCode's "Extensions" tab (browse/search/install/remove Neovim plugins) built on nui.nvim and lazy.nvim. Load before planning, scaffolding, or implementing any part of this project so decisions stay consistent.
+description: Standing architecture and plan for extensions.nvim, a Neovim plugin that recreates VSCode's "Extensions" tab (browse/search/install/remove Neovim plugins, plus a per-plugin config builder) built on nui.nvim and lazy.nvim. Load before planning, scaffolding, or implementing any part of this project so decisions stay consistent.
 ---
 
 # extensions.nvim — project plan
@@ -51,10 +51,10 @@ but for browsing, installing, and removing **Neovim plugins** themselves
   - Status detection (installed/not) → read `lazy.nvim`'s own registry via
     `require("lazy.core.config").plugins`, so plugins installed outside
     extensions.nvim are still correctly detected.
-- **Catalog data source (MVP): static, local, bundled with the plugin.** No
-  network calls in the MVP. Small curated list (~30–50 well-known plugins).
+- **Catalog data source (MVP): static, local, bundled with the plugin**, as
+  `data/catalog.json`. No network calls in the MVP. ~31 well-known plugins.
   Fields per entry: `name`, `repo` (`user/repo`), `description`, `category`,
-  `tags`.
+  `tags`, optional `config` (see the configuration-builder section below).
 
 ## MVP scope (in)
 
@@ -100,6 +100,146 @@ but for browsing, installing, and removing **Neovim plugins** themselves
 - `require("extensions").setup({ catalog_path = ... })` — minimal config,
   only override currently planned is a custom catalog path.
 
+## Implemented: per-plugin configuration builder
+
+User request: press `c` on a plugin in the list to get a popup where they
+can configure that plugin's options (toggle/int/string fields), driven by
+a schema the catalog data carries per plugin — a "builder" that reads the
+schema and renders the right input widget per field type. **Implemented
+and headless-tested** (full cycle: install → open config → toggle a field
+→ edit a string field → verify the managed file round-trips and
+`loadfile()`s cleanly → remove). The design below matches what was built;
+update this section first if the design changes rather than letting code
+and plan drift apart.
+
+### 1. Catalog moves from a Lua table to JSON
+
+- New bundled file: `data/catalog.json` at the plugin root (a JSON array,
+  order-preserving — see field-ordering note below). Replaces the inline
+  `M.builtin` Lua table currently in `lua/extensions/catalog.lua`; that
+  module keeps its role as the loader + `filter()` logic, it just changes
+  *how* `M.items` gets populated (decode JSON instead of a literal table).
+- Why JSON specifically: it's a neutral, dependency-free format any
+  tool/script/contributor can generate or validate, which matters if the
+  catalog ever grows beyond a hand-maintained Lua list (already on the
+  roadmap as "dynamic/remote catalog"). Parsing needs no extra dependency —
+  Neovim has `vim.json.decode`/`vim.json.encode` built in (0.6+).
+- Locating the bundled file at runtime: `lazy.nvim` adds the whole plugin
+  directory to `runtimepath` (not just `lua/`), so
+  `vim.api.nvim_get_runtime_file("data/catalog.json", false)[1]` finds it
+  correctly without hardcoding an absolute path.
+- `config.catalog_path` (the existing user override option) keeps working,
+  but its expected format changes from "a Lua file that `return`s a table"
+  to "a JSON file with the same shape as `data/catalog.json`". Decide at
+  implementation time whether to keep accepting `.lua` overrides too for
+  backward compatibility (cheap: branch on file extension) or cut over
+  cleanly to JSON-only, since the MVP shipped only a few days ago and has
+  no external users yet — cutting over cleanly is probably fine.
+
+### 2. New catalog field: `config` (per-plugin option schema)
+
+Each catalog item gains an optional `config` field: an **array** (not a
+JSON object) of field-spec objects, e.g.:
+
+```json
+{
+  "repo": "windwp/nvim-autopairs",
+  "name": "nvim-autopairs",
+  "description": "...",
+  "category": "editing",
+  "tags": ["autopairs"],
+  "config": [
+    { "key": "check_ts", "input_type": "toggle", "input_name": "Treesitter-aware pairs", "default": true },
+    { "key": "map_cr", "input_type": "toggle", "input_name": "Map <CR>", "default": true }
+  ]
+}
+```
+
+Why an array and not the object-keyed-by-field-name shape the user first
+sketched (`config: { input_type: toggle, input_name: lazy }`): decoding a
+JSON *object* into a Lua table loses key order (Lua maps are unordered),
+so the config popup couldn't reliably show fields in the order the plugin
+entry's author intended. A JSON array of `{ key, input_type, input_name,
+default }` objects decodes to a sequence (`ipairs`-safe) and keeps order,
+at the cost of `key` being explicit instead of implicit-as-object-key.
+
+Field spec properties:
+- `key` — the literal option name written into that plugin's `opts` table
+  in the generated lazy.nvim spec (see §3).
+- `input_type` — `"toggle"` (boolean) | `"int"` (integer) | `"string"`
+  (free text) for the first version. Dispatch is a small lookup table in
+  the UI builder (`INPUT_RENDERERS[input_type]`), so adding a type later
+  (`"select"`/enum, `"float"`, ...) means adding one more entry, not
+  restructuring the builder.
+- `input_name` — human-readable label shown in the popup.
+- `default` — pre-filled/fallback value when the user hasn't set one yet.
+
+### 3. Where chosen values live: reuse the existing managed spec file
+
+No new storage file. `installer.lua`'s per-plugin entry in
+`lua/plugins/extensions-nvim.lua` grows from `{ repo }` to
+`{ repo, opts = { key = value, ... } }` — `opts` is a first-class
+`lazy.nvim` spec field lazy.nvim already knows how to apply
+(`require(x).setup(opts)`), so no extra plumbing is needed to make chosen
+values actually reach the plugin.
+- `write_specs`'s serializer needs extending to also emit a nested `opts`
+  table with typed Lua literals (strings via `%q`, numbers/booleans via
+  `tostring`), not just the single repo string it handles today.
+- New `installer.lua` functions: `M.get_opts(repo)` (read the current
+  `opts` for a repo from the managed file, falling back to each field's
+  `default` for keys not yet set) and `M.set_opt(repo, key, value)`
+  (update one key in that plugin's `opts` table and rewrite the file).
+- Known limitation to surface to the user in the UI (a notify, not a
+  blocker): most plugins only call `.setup(opts)` once at load time, so
+  changing `opts` after a plugin is already loaded this session typically
+  needs `:Lazy reload <plugin>` or a Neovim restart to actually take
+  effect — the config builder should say so after saving, not imply a
+  live-apply it can't deliver.
+- Removing a plugin (`x`) deletes its whole spec entry, `opts` included —
+  no separate "remember old config" behavior planned.
+
+### 4. UI: the config popup (`c` keymap)
+
+- New keymap `c` on the list pane: opens a config popup for the plugin
+  under the cursor. If that catalog item's `config` array is empty/absent,
+  notify "No configurable options for this plugin" instead of opening
+  anything.
+- Popup: a **centered** floating `nui.Popup` (like the old on-demand help
+  popup was, not docked into the permanent 3-pane layout — this is a
+  per-plugin, occasional action, not always-relevant chrome). Title
+  " Configure <plugin name> ", rounded border, styled consistently with
+  the rest of the UI.
+- One line per field, built by the `INPUT_RENDERERS[input_type]` builder:
+  - `toggle` → renders as a checkbox-style line; `<CR>`/`<Space>` flips it
+    and immediately calls `Installer.set_opt(repo, key, not current)`.
+  - `int`/`string` → renders label + current value; `<CR>` opens a small
+    `nui.Input` overlaid at that line's position (same in-place-edit trick
+    used for the search bar), validates (`int` must `tonumber` cleanly),
+    and calls `Installer.set_opt` on submit.
+- Changes apply immediately per field (no separate "save" step), matching
+  how install/remove/search already behave in this plugin — `q`/`<Esc>`
+  just closes the popup.
+
+### Resolved while implementing (decisions made, differ slightly from the
+### original draft above)
+
+- Example `config` schemas seeded on 3 catalog entries: `nvim-autopairs`
+  (`check_ts`, `map_cr`, both toggle), `folke/todo-comments.nvim`
+  (`sign_priority` int, `merge_keywords` toggle), `numToStr/Comment.nvim`
+  (`padding`/`sticky` toggle, `ignore` string). Swapped
+  `indent-blankline.nvim` out of the original candidate list — its
+  meaningful options are nested (`scope.enabled`, `indent.char`, ...) and
+  the `key` field only supports flat top-level `opts` keys in this first
+  version; picked `Comment.nvim` instead, which has flat options that fit.
+- `catalog_path` cut over to JSON-only, no `.lua` fallback kept (confirmed
+  fine — the option had no external users yet).
+- `M.open_config()` (the UI layer) refuses to open for an uninstalled
+  plugin with a `vim.notify` WARN, *and* `Installer.set_opt()` (the data
+  layer) independently refuses too — belt-and-suspenders, since `set_opt`
+  is reachable from more than just this one UI path.
+- "Reset to default" key was **not** added — still genuinely open if
+  wanted later.
+
 ## Explicitly out of scope for MVP (backlog for v2+)
 
 - Dynamic/remote catalog (GitHub search API, dotfyle.com API), with caching.
@@ -109,19 +249,22 @@ but for browsing, installing, and removing **Neovim plugins** themselves
 - Multi-backend support (`mini.deps`, `vim.pack`).
 - Category/tag filter UI (the data fields exist, but no filter UI yet).
 
-## Suggested file layout (once scaffolding starts)
+## File layout
 
 ```
 plugin/extensions.lua        -- defines :Extensions command
 lua/extensions/init.lua      -- setup(), public API
 lua/extensions/ui.lua        -- nui.nvim layout, keymaps
-lua/extensions/catalog.lua   -- static plugin list + search/filter
+lua/extensions/catalog.lua   -- catalog loader (JSON decode) + search/filter
 lua/extensions/installer.lua -- managed spec file read/write, lazy.nvim calls
 lua/extensions/status.lua    -- installed/not-installed detection
+data/catalog.json            -- bundled catalog data (incl. `config` schemas),
+                                 found at runtime via nvim_get_runtime_file
 doc/extensions.txt           -- help docs
 ```
 
 ## Open questions not yet decided
 
-- Exact initial curated catalog list (which ~30–50 plugins to seed).
 - Whether to add a healthcheck (`:checkhealth extensions`) in MVP or v2.
+- See "Open questions for this feature" under the config-builder section
+  above for that feature's specific open questions.
