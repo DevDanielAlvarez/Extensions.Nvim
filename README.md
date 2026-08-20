@@ -28,15 +28,16 @@ return {
 
 ## Usage
 
-Run `:Extensions` to open the panel: a centered floating window with a plugin
-list on the left and a live details preview on the right, which updates as
-you move the cursor.
+Run `:Extensions` to open the panel: a centered floating window with a
+search bar and plugin list on the top-left, a live details preview on the
+top-right that updates as you move the cursor, and a keymap reference panel
+docked along the bottom — all visible from the moment it opens.
 
 | Key         | Action                                                |
 | ----------- | ------------------------------------------------------ |
 | `i`         | Install the plugin under the cursor                     |
 | `x`         | Remove the plugin under the cursor                      |
-| `/`         | Search/filter by name, description or tag               |
+| `/`         | Focus the search bar and filter live as you type         |
 | `<Tab>`     | Cycle status filter: All / Installed / Not installed     |
 | `r`         | Reload the catalog                                       |
 | `q`/`<Esc>` | Close                                                    |

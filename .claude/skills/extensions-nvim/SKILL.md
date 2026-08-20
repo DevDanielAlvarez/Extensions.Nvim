@@ -58,14 +58,35 @@ but for browsing, installing, and removing **Neovim plugins** themselves
 
 ## MVP scope (in)
 
-- `:Extensions` command opens the UI: a centered floating `nui.nvim` Layout
-  (not a left split — revised from the original plan) with two side-by-side
-  Popups: a plugin list (~34% width) and a live details preview (~66%
-  width) that updates on `CursorMoved` in the list. Rounded borders, title
-  in the list's top border, keymap hints in its bottom border, live
-  filter/count status also in its bottom border (via `border:set_text`).
+- `:Extensions` command opens the UI: a single centered floating `nui.nvim`
+  Layout (not a left split — revised from the original plan) containing
+  three Popups that all mount/unmount together as one unit:
+  - top-left: plugin list (~34% width of the top row)
+  - top-right: live details preview (~66% width) that updates on
+    `CursorMoved` in the list
+  - bottom: a keymap reference panel (fixed height = `#KEYMAPS + 2` rows,
+    full width), docked below the list/preview row
+  Structure: outer `Layout.Box({..}, {dir="col"})` with the list+preview
+  row-group using `grow = 1` and the help panel using a fixed `size`, so
+  nui's own layout engine positions the help panel directly under the
+  other two without any manual pixel math. The help panel always opens
+  together with the rest — there is no separate toggle for it (an earlier
+  on-demand `?`-toggled popup was replaced by this docked panel per user
+  request). Rounded borders throughout; title in the list's top border,
+  live filter/count status in its bottom border (via `border:set_text`).
 - List view with per-item status indicator (installed vs not).
-- Text search/filter over name/description/tags.
+- **Always-visible search bar**: row 1 of the list buffer itself is
+  reserved for a search bar (placeholder "Search…" or the current query);
+  catalog items start at row 2 (`state.line_to_item` keys start at 2 to
+  match). It shows up the moment `:Extensions` opens — no keypress needed
+  to reveal it, per user request. Pressing `/` overlays a real editable
+  `nui.Input` at the exact same position/width (row 0, col 0 relative to
+  the list window) so it reads as an in-place edit of that line, not a
+  separate popup appearing elsewhere. Filters live on every keystroke via
+  `on_change` (deferred with `vim.schedule` — firing the re-render
+  synchronously from inside `on_lines` throws Neovim's E565 "can't change
+  buffer during callback"). Initial cursor is placed on row 2 (first item)
+  so `j`/`k` navigation works immediately without landing on the search row.
 - Status filter: All / Installed / Not installed.
 - Live preview pane on cursor movement: name, repo, description, status,
   category, tags. (Replaces the earlier plan of a separate on-demand detail
@@ -74,7 +95,8 @@ but for browsing, installing, and removing **Neovim plugins** themselves
   + `lazy.nvim` API as described above.
 - Keymaps (all on the list pane; `j`/`k` are native cursor motion, no remap
   needed): `i` install, `x` remove, `/` search, `<Tab>` cycle status filter,
-  `r` reload catalog, `q`/`<Esc>` close.
+  `r` reload catalog, `q`/`<Esc>` close. Documented in the always-visible
+  docked help panel, built from a single `KEYMAPS` table in `ui.lua`.
 - `require("extensions").setup({ catalog_path = ... })` — minimal config,
   only override currently planned is a custom catalog path.
 
