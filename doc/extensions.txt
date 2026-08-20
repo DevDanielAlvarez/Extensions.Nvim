@@ -1,0 +1,88 @@
+*extensions.txt*    A VSCode-like Extensions panel for browsing/installing plugins
+
+==============================================================================
+CONTENTS                                                *extensions.nvim*
+
+    Introduction .......................... |extensions-introduction|
+    Requirements ........................... |extensions-requirements|
+    Setup ................................... |extensions-setup|
+    Commands ............................. |extensions-commands|
+    Mappings .............................. |extensions-mappings|
+    Configuration ..................... |extensions-configuration|
+
+==============================================================================
+INTRODUCTION                                        *extensions-introduction*
+
+extensions.nvim recreates the UX of VSCode's "Extensions" sidebar tab inside
+Neovim: browse a catalog of Neovim plugins, search/filter it, view details,
+and install or remove plugins with a keypress. It manages plugins through
+lazy.nvim, using its own spec file so it never touches other config files.
+
+==============================================================================
+REQUIREMENTS                                        *extensions-requirements*
+
+- Neovim >= 0.9.0
+- lazy.nvim         (https://github.com/folke/lazy.nvim)
+- nui.nvim          (https://github.com/MunifTanjim/nui.nvim)
+
+==============================================================================
+SETUP                                                      *extensions-setup*
+
+Add it as a lazy.nvim plugin spec, e.g. in `lua/plugins/extensions.lua`: >lua
+    return {
+      "yourname/extensions.nvim",
+      dependencies = { "MunifTanjim/nui.nvim" },
+      cmd = "Extensions",
+      opts = {},
+    }
+<
+`opts = {}` triggers `require("extensions").setup(opts)` automatically. You
+may also call it yourself:
+>lua
+    require("extensions").setup({
+      catalog_path = nil, -- see |extensions-configuration|
+    })
+<
+==============================================================================
+COMMANDS                                                *extensions-commands*
+
+                                                                  *:Extensions*
+:Extensions             Opens the extensions panel.
+
+==============================================================================
+MAPPINGS                                                *extensions-mappings*
+
+Inside the extensions list:
+
+    <CR>    Open details for the plugin under the cursor.
+    i       Install the plugin under the cursor.
+    x       Remove the plugin under the cursor.
+    /       Search/filter by name, description or tag.
+    <Tab>   Cycle status filter: All / Installed / Not installed.
+    r       Reload the catalog and re-render the list.
+    q       Close the extensions panel.
+
+Inside a plugin's detail popup:
+
+    i       Install this plugin.
+    x       Remove this plugin.
+    q / <Esc>   Close the detail popup.
+
+==============================================================================
+CONFIGURATION                                      *extensions-configuration*
+
+                                                    *extensions-catalog_path*
+catalog_path ~
+    Type: `string?`, Default: `nil`
+    Path to a Lua file that `return`s a custom list of catalog items,
+    overriding the small bundled catalog. Each item must have the shape: >lua
+        {
+          repo = "user/repo",
+          name = "display name",
+          description = "...",
+          category = "...",
+          tags = { "tag1", "tag2" },
+        }
+<
+==============================================================================
+vim:tw=78:ts=8:ft=help:norl:
