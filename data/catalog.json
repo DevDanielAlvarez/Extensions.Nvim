@@ -228,5 +228,147 @@
     "description": "Library of independent, well-designed small modules for Neovim.",
     "category": "editing",
     "tags": ["mini", "library"]
+  },
+  {
+    "repo": "xiyaowong/transparent.nvim",
+    "name": "transparent.nvim",
+    "description": "Toggle a transparent background for Neovim.",
+    "category": "ui",
+    "tags": ["transparent", "background"]
+  },
+  {
+    "repo": "stevearc/oil.nvim",
+    "name": "oil.nvim",
+    "description": "Edit your filesystem like a normal Neovim buffer.",
+    "category": "ui",
+    "tags": ["explorer", "file-tree", "buffer"],
+    "config": [
+      { "key": "default_file_explorer", "input_type": "toggle", "input_name": "Replace netrw as default explorer", "default": true },
+      { "key": "delete_to_trash", "input_type": "toggle", "input_name": "Send deleted files to trash", "default": false }
+    ]
+  },
+  {
+    "repo": "ThePrimeagen/harpoon",
+    "name": "harpoon",
+    "description": "Mark files and jump between them instantly.",
+    "category": "navigation",
+    "tags": ["navigation", "marks", "jump"]
+  },
+  {
+    "repo": "mbbill/undotree",
+    "name": "undotree",
+    "description": "Visualize and navigate the undo history tree.",
+    "category": "editor",
+    "tags": ["undo", "history"]
+  },
+  {
+    "repo": "akinsho/toggleterm.nvim",
+    "name": "toggleterm.nvim",
+    "description": "Persist and toggle multiple terminals easily.",
+    "category": "terminal",
+    "tags": ["terminal", "toggle"],
+    "config": [
+      { "key": "size", "input_type": "int", "input_name": "Terminal size", "default": 12 },
+      { "key": "direction", "input_type": "string", "input_name": "Open direction", "default": "float" },
+      { "key": "persist_size", "input_type": "toggle", "input_name": "Persist terminal size", "default": true }
+    ]
+  },
+  {
+    "repo": "goolord/alpha-nvim",
+    "name": "alpha-nvim",
+    "description": "Fast and fully customizable greeter/dashboard for Neovim.",
+    "category": "ui",
+    "tags": ["dashboard", "startscreen"]
+  },
+  {
+    "repo": "folke/persistence.nvim",
+    "name": "persistence.nvim",
+    "description": "Automatic session management for Neovim.",
+    "category": "editor",
+    "tags": ["session", "persistence"]
+  },
+  {
+    "repo": "kevinhwang91/nvim-ufo",
+    "name": "nvim-ufo",
+    "description": "Make folding in Neovim fast and clean.",
+    "category": "editor",
+    "tags": ["folding", "fold"]
+  },
+  {
+    "repo": "nvim-pack/nvim-spectre",
+    "name": "nvim-spectre",
+    "description": "Search and replace across the whole project.",
+    "category": "search",
+    "tags": ["search", "replace"]
+  },
+  {
+    "repo": "sindrets/diffview.nvim",
+    "name": "diffview.nvim",
+    "description": "Single-tabpage interface for cycling through diffs and file history.",
+    "category": "git",
+    "tags": ["git", "diff"]
+  },
+  {
+    "repo": "rebelot/kanagawa.nvim",
+    "name": "kanagawa.nvim",
+    "description": "Dark colorscheme inspired by the colors of the famous painting by Katsushika Hokusai.",
+    "category": "colorscheme",
+    "tags": ["theme", "colorscheme"]
+  },
+  {
+    "repo": "ellisonleao/gruvbox.nvim",
+    "name": "gruvbox.nvim",
+    "description": "Lua port of the classic gruvbox colorscheme.",
+    "category": "colorscheme",
+    "tags": ["theme", "colorscheme"]
+  },
+  {
+    "repo": "EdenEast/nightfox.nvim",
+    "name": "nightfox.nvim",
+    "description": "Highly customizable colorscheme family with several variants.",
+    "category": "colorscheme",
+    "tags": ["theme", "colorscheme"]
+  },
+  {
+    "repo": "nvim-treesitter/nvim-treesitter-context",
+    "name": "nvim-treesitter-context",
+    "description": "Shows the code context (enclosing function/class) sticky at the top.",
+    "category": "editor",
+    "tags": ["context", "sticky-scroll"]
+  },
+  {
+    "repo": "rafamadriz/friendly-snippets",
+    "name": "friendly-snippets",
+    "description": "Large collection of preconfigured snippets for many languages.",
+    "category": "completion",
+    "tags": ["snippets"]
+  },
+  {
+    "repo": "zbirenbaum/copilot.lua",
+    "name": "copilot.lua",
+    "description": "Lua-native GitHub Copilot client with a completion source for nvim-cmp.",
+    "category": "completion",
+    "tags": ["ai", "copilot", "completion"]
+  },
+  {
+    "repo": "ggandor/leap.nvim",
+    "name": "leap.nvim",
+    "description": "Jump to any visible location with minimal keystrokes.",
+    "category": "editor",
+    "tags": ["motion", "jump"]
+  },
+  {
+    "repo": "danymat/neogen",
+    "name": "neogen",
+    "description": "Generate annotations/docstrings for functions and classes.",
+    "category": "editing",
+    "tags": ["docstring", "annotations"]
+  },
+  {
+    "repo": "folke/sidekick.nvim",
+    "name": "sidekick.nvim",
+    "description": "AI coding agent panel with Next Edit Suggestions and an embedded terminal CLI for tools like Copilot and Claude Code.",
+    "category": "completion",
+    "tags": ["ai", "copilot", "agent", "chat"]
   }
 ]
