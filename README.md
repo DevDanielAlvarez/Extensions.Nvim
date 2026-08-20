@@ -8,6 +8,8 @@ built with [nui.nvim](https://github.com/MunifTanjim/nui.nvim).
 > **Status: MVP.** Static bundled catalog, single backend (`lazy.nvim`), no
 > remote plugin data yet. See [Roadmap](#roadmap).
 
+![extensions.nvim panel: plugin list with a live search bar, a details preview, and a docked keymap reference](screen.png)
+
 ## Requirements
 
 - Neovim >= 0.9.0
