@@ -92,6 +92,16 @@ refused (install it first); most plugins only apply `opts` once at load
 time, so changes may need `:Lazy reload <plugin>` or a restart to take
 effect -- extensions.nvim notifies you of this after saving.
 
+One key name is special: a `toggle` field with `key = "enabled_default_keymaps"`
+is never written into `opts` (most plugins would ignore an unknown option
+there anyway, but it isn't a real one, so it's kept out). Instead, when set
+to `true`, the catalog item's `default_keymaps` field -- raw Lua source for
+a `keys = { ... }` lazy.nvim spec block, since keymaps carry functions that
+JSON can't represent -- is spliced verbatim into that plugin's spec entry
+as a `keys = { ... }` field, alongside `opts`. Setting it back to `false`
+removes the block again. This is how catalog authors ship a plugin's
+documented default keymaps as a one-toggle opt-in.
+
 ==============================================================================
 CONFIGURATION                                      *extensions-configuration*
 
@@ -107,10 +117,14 @@ catalog_path ~
           "description": "...",
           "category": "...",
           "tags": ["tag1", "tag2"],
-          "config": []
+          "config": [],
+          "default_keymaps": null
         }
 <
     `config` is optional; see |extensions-plugin-config| for its shape.
+    `default_keymaps` is optional too: raw Lua source for a `keys = {...}`
+    block, only needed if `config` includes an `enabled_default_keymaps`
+    toggle (see |extensions-plugin-config|).
 
 ==============================================================================
 vim:tw=78:ts=8:ft=help:norl:

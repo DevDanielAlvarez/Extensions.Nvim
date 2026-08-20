@@ -369,6 +369,10 @@
     "name": "sidekick.nvim",
     "description": "AI coding agent panel with Next Edit Suggestions and an embedded terminal CLI for tools like Copilot and Claude Code.",
     "category": "completion",
-    "tags": ["ai", "copilot", "agent", "chat"]
+    "tags": ["ai", "copilot", "agent", "chat"],
+    "config": [
+      { "key": "enabled_default_keymaps", "input_type": "toggle", "input_name": "Enable default keymaps", "default": false }
+    ],
+    "default_keymaps": "{\n  {\n    \"<tab>\",\n    function()\n      -- if there is a next edit, jump to it, otherwise apply it if any\n      if not require(\"sidekick\").nes_jump_or_apply() then\n        return \"<Tab>\" -- fallback to normal tab\n      end\n    end,\n    expr = true,\n    desc = \"Goto/Apply Next Edit Suggestion\",\n  },\n  {\n    \"<c-.>\",\n    function() require(\"sidekick.cli\").focus() end,\n    desc = \"Sidekick Focus\",\n    mode = { \"n\", \"t\", \"i\", \"x\" },\n  },\n  {\n    \"<leader>aa\",\n    function() require(\"sidekick.cli\").toggle() end,\n    desc = \"Sidekick Toggle CLI\",\n  },\n  {\n    \"<leader>as\",\n    function() require(\"sidekick.cli\").select() end,\n    desc = \"Select CLI\",\n  },\n  {\n    \"<leader>ad\",\n    function() require(\"sidekick.cli\").close() end,\n    desc = \"Detach a CLI Session\",\n  },\n  {\n    \"<leader>at\",\n    function() require(\"sidekick.cli\").send({ msg = \"{this}\" }) end,\n    mode = { \"x\", \"n\" },\n    desc = \"Send This\",\n  },\n  {\n    \"<leader>af\",\n    function() require(\"sidekick.cli\").send({ msg = \"{file}\" }) end,\n    desc = \"Send File\",\n  },\n  {\n    \"<leader>av\",\n    function() require(\"sidekick.cli\").send({ msg = \"{selection}\" }) end,\n    mode = { \"x\" },\n    desc = \"Send Visual Selection\",\n  },\n  {\n    \"<leader>ap\",\n    function() require(\"sidekick.cli\").prompt() end,\n    mode = { \"n\", \"x\" },\n    desc = \"Sidekick Select Prompt\",\n  },\n  {\n    \"<leader>ac\",\n    function() require(\"sidekick.cli\").toggle({ name = \"claude\", focus = true }) end,\n    desc = \"Sidekick Toggle Claude\",\n  },\n}"
   }
 ]

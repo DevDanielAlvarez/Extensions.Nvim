@@ -16,6 +16,7 @@ local M = {}
 ---@field category string
 ---@field tags string[]
 ---@field config? ExtensionsConfigField[] optional configurable options
+---@field default_keymaps? string raw Lua source for a `keys = {...}` lazy.nvim spec block, spliced in verbatim when a "enabled_default_keymaps" toggle field is set to true
 
 ---@type ExtensionsCatalogItem[]
 M.items = {}

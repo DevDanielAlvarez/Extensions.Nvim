@@ -52,6 +52,32 @@ local function serialize_value(value)
   error("[extensions.nvim] cannot serialize opt value of type " .. t)
 end
 
+--- Virtual config key (never a real plugin option): when true, the catalog
+--- item's `default_keymaps` raw Lua source is spliced in as a `keys = {...}`
+--- field on the spec entry, alongside (not inside) `opts`. Filtered out of
+--- the serialized `opts` table itself so it never reaches the plugin's
+--- `.setup(opts)` call.
+local DEFAULT_KEYMAPS_OPT = "enabled_default_keymaps"
+
+--- Looks up a catalog item's raw `default_keymaps` source by repo. Required
+--- lazily (not at module load) to avoid a load-time circular require with
+--- extensions.catalog, which itself requires extensions.status ->
+--- extensions.installer.
+---@param repo string
+---@return string?
+local function default_keymaps_source(repo)
+  local ok, Catalog = pcall(require, "extensions.catalog")
+  if not ok then
+    return nil
+  end
+  for _, item in ipairs(Catalog.items) do
+    if item.repo == repo then
+      return item.default_keymaps
+    end
+  end
+  return nil
+end
+
 ---@param specs { [1]: string, opts?: table<string, boolean|integer|string> }[]
 ---@return boolean
 function M.write_specs(specs)
@@ -63,13 +89,32 @@ function M.write_specs(specs)
     "return {",
   }
   for _, spec in ipairs(specs) do
-    if spec.opts and next(spec.opts) ~= nil then
-      local parts = {}
-      for key, value in pairs(spec.opts) do
-        table.insert(parts, string.format("%s = %s", key, serialize_value(value)))
+    local opts = spec.opts or {}
+    local want_keys = opts[DEFAULT_KEYMAPS_OPT] == true
+
+    local opt_parts = {}
+    for key, value in pairs(opts) do
+      if key ~= DEFAULT_KEYMAPS_OPT then
+        table.insert(opt_parts, string.format("%s = %s", key, serialize_value(value)))
       end
-      table.sort(parts) -- deterministic output regardless of pairs() order
-      table.insert(lines, string.format("  { %q, opts = { %s } },", spec[1], table.concat(parts, ", ")))
+    end
+    table.sort(opt_parts) -- deterministic output regardless of pairs() order
+
+    local entry_parts = {}
+    if #opt_parts > 0 then
+      table.insert(entry_parts, string.format("opts = { %s }", table.concat(opt_parts, ", ")))
+    end
+    if want_keys then
+      local keys_src = default_keymaps_source(spec[1])
+      if keys_src then
+        table.insert(entry_parts, "keys = " .. keys_src)
+      else
+        vim.notify("[extensions.nvim] no default keymaps available for " .. spec[1], vim.log.levels.WARN)
+      end
+    end
+
+    if #entry_parts > 0 then
+      table.insert(lines, string.format("  { %q, %s },", spec[1], table.concat(entry_parts, ", ")))
     else
       table.insert(lines, string.format("  { %q },", spec[1]))
     end

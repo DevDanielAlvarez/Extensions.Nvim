@@ -240,6 +240,40 @@ values actually reach the plugin.
 - "Reset to default" key was **not** added — still genuinely open if
   wanted later.
 
+## Implemented: opt-in default keymaps block (`enabled_default_keymaps`)
+
+User request: some catalog plugins (e.g. `folke/sidekick.nvim`) ship
+documented default keymaps as a `keys = { ... }` lazy.nvim spec table full
+of closures -- not representable as a JSON scalar, so the existing
+`opts.<key> = <scalar>` config-field model (see above) can't carry it.
+Wanted a one-toggle way to opt into shipping that exact block.
+
+- New optional catalog item field `default_keymaps`: a **raw Lua source
+  string** (e.g. `"{ { \"<tab>\", function() ... end, ... }, ... }"`) for
+  the plugin's `keys` block, JSON-escaped like any string field.
+- Convention: a `config` field spec with `key = "enabled_default_keymaps"`
+  and `input_type = "toggle"` is treated as a **virtual** option -- it
+  round-trips through the managed file's `opts` table exactly like any
+  other toggle (`Installer.get_opts`/`set_opt` needed zero changes for
+  this), but `installer.write_specs` special-cases that one key name at
+  serialize time: it's filtered out of the emitted `opts = { ... }` block
+  (it isn't a real plugin option) and, when `true`, the catalog item's
+  `default_keymaps` source is looked up and spliced in verbatim as a
+  sibling `keys = { ... }` field on that spec entry. Toggling back to
+  `false` drops the block again on the next write.
+- Lookup requires `extensions.catalog` from inside `installer.lua`, done
+  with a **lazy `require` inside the function body**, not at module top --
+  a top-level require would be a load-time circular dependency
+  (`installer` -> `catalog` -> `status` -> `installer`). Deferred to call
+  time it's safe: by the time any write happens, `extensions.catalog` is
+  already fully loaded via `ui.lua`'s top-level require.
+- Verified headless: toggling on produces a `keys` block that
+  `loadfile()`s and executes cleanly with the right keymap count; toggling
+  off leaves no trace of the flag in `opts`.
+- Scoped to exactly this one key name, not a general "raw code block"
+  field type -- no other catalog entry needs this yet, and a more generic
+  mechanism can be designed later if a second use case shows up.
+
 ## Explicitly out of scope for MVP (backlog for v2+)
 
 - Dynamic/remote catalog (GitHub search API, dotfyle.com API), with caching.
